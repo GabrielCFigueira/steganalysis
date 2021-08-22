@@ -135,13 +135,13 @@ def computeNewFeatures(newData, video_id, features):
     n_features = 17 # number of statistical features
 
     for i in range(len(features)):
-        newData[video_id][i * n_features] = np.mean(features[i])
-        newData[video_id][i * n_features + 1] = np.median(features[i])
-        newData[video_id][i * n_features + 2] = np.std(features[i])
-        newData[video_id][i * n_features + 3] = np.var(features[i])
-        newData[video_id][i * n_features + 4] = kurtosis(features[i])
-        newData[video_id][i * n_features + 5] = skew(features[i])
-        newData[video_id][i * n_features + 6] = np.amax(features[i])
+        newData[video_id][i * n_features] = np.mean(features[i])                                                                                                           
+        newData[video_id][i * n_features + 1] = np.median(features[i])                                                                                                     
+        newData[video_id][i * n_features + 2] = np.std(features[i])                                                                                                        
+        newData[video_id][i * n_features + 3] = np.var(features[i])                                                                                                        
+        newData[video_id][i * n_features + 4] = kurtosis(features[i])                                                                                                      
+        newData[video_id][i * n_features + 5] = skew(features[i])                                                                                                          
+        newData[video_id][i * n_features + 6] = np.amax(features[i])                                                                                                       
         newData[video_id][i * n_features + 7] = np.amin(features[i])
         newData[video_id][i * n_features + 8] = np.percentile(features[i], 10)
         newData[video_id][i * n_features + 9] = np.percentile(features[i], 20)
@@ -152,7 +152,6 @@ def computeNewFeatures(newData, video_id, features):
         newData[video_id][i * n_features + 14] = np.percentile(features[i], 70)
         newData[video_id][i * n_features + 15] = np.percentile(features[i], 80)
         newData[video_id][i * n_features + 16] = np.percentile(features[i], 90)
-
 
 def statistics(data):
     
@@ -170,26 +169,26 @@ def statistics(data):
     
     print("n_videos: " + str(n_videos))
 
-    n_features = 17 # number of statistical features
     n_columns = len(data.iloc[0]) - 2
+    n_features = 17 # number of statistical features
     columns = []
     for j in range(n_columns):
         columns += ["mean@" + str(j)]
         columns += ["median@" + str(j)]
-        columns += ["std@" + str(j)]
+        columns += ["std@" + str(j)]                                                 
         columns += ["var@" + str(j)]
         columns += ["kurtosis@" + str(j)]
-        columns += ["skew@" + str(j)]
+        columns += ["skew@" + str(j)]                        
         columns += ["max@" + str(j)]
         columns += ["min@" + str(j)]
-        columns += ["p10@" + str(j)]
-        columns += ["p20@" + str(j)]
-        columns += ["p30@" + str(j)]
-        columns += ["p40@" + str(j)]
-        columns += ["p50@" + str(j)]
-        columns += ["p60@" + str(j)]
+        columns += ["p10@" + str(j)]                    
+        columns += ["p20@" + str(j)]     
+        columns += ["p30@" + str(j)]                                                                      
+        columns += ["p40@" + str(j)]                     
+        columns += ["p50@" + str(j)]                                    
+        columns += ["p60@" + str(j)]               
         columns += ["p70@" + str(j)]
-        columns += ["p80@" + str(j)]
+        columns += ["p80@" + str(j)]          
         columns += ["p90@" + str(j)]
     columns += ['class']
 
@@ -218,7 +217,7 @@ def statistics(data):
     computeNewFeatures(newData, video_id, features)
     newData[video_id][n_columns * n_features] = data['class'][len(data.index) - 1]
     newData = pandas.DataFrame(data=newData, columns=columns)
-    return newData
+    return newData, columns
 # --------------------------------------------
 
 # FUNCTIONS
@@ -240,7 +239,7 @@ def create_xgb_classifier(file_type):
     print('[*] Reading {} ... '.format(csv_file))
     training_data = pandas.read_csv(csv_file)
    
-    training_data = statistics(training_data)
+    training_data, columns = statistics(training_data)
 
     training_data = training_data.sample(frac=1)
     print('[*] Getting x and y ... ')
@@ -251,6 +250,7 @@ def create_xgb_classifier(file_type):
     cv = StratifiedKFold(n_splits=10)
     tprs = []
     aucs = []
+    importances = []
     mean_fpr = np.linspace(0, 1, 100)
     
     for train, test in cv.split(x, y):
@@ -273,6 +273,10 @@ def create_xgb_classifier(file_type):
         tprs.append(interp(mean_fpr, fpr, tpr))
         tprs[-1][0] = 0.0
         aucs.append(roc_auc)
+
+        f_imp = model.feature_importances_
+        importances.append(f_imp)
+
 
     mean_tpr = np.mean(tprs, axis=0)
     mean_tpr[-1] = 1.0
@@ -312,9 +316,23 @@ def create_xgb_classifier(file_type):
 
     plt.setp(ax1.get_xticklabels(), fontsize=14)
     plt.setp(ax1.get_yticklabels(), fontsize=14)
-
+    
     fig.savefig('Steganalysis.pdf')
     plt.close(fig)
+
+    #Compute mean importance of feature accross CV folds
+    bin_number = list(range(len(x.iloc[0])))
+    mean_importances = []                                          
+
+    for n in range(0,len(importances[0])):                                           
+    
+        mean_imp = (importances[0][n] + importances[1][n] + importances[2][n] + importances[3][n] + importances[4][n] + importances[5][n] + importances[6][n] + importances[7][n] + importances[8][n] + importances[9][n])/10.0
+        mean_importances.append(mean_imp)
+
+    #print mean_importances
+    f_imp = zip(bin_number,mean_importances, columns)
+    f_new = sorted(f_imp, key = lambda t: t[1], reverse=True)
+    np.save('weights', np.array(f_new))
 
 
 # --------------------------------------------
