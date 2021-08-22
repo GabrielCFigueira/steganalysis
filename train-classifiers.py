@@ -435,6 +435,60 @@ def get_npelo_features(file):
     return file
 
 
+# FUNCTION: GET SUPERB FEATURES
+def get_superb_features(file):
+    # set up files for bash cmds
+    input_file = file.file_name
+    output_file = 'temp-features.csv'
+    extractor = 'SUPERB/extractor.exe'
+    bash_cmd = 'wine {} -s -i {} -o {}'.format(extractor, input_file, output_file)
+
+    if os.path.exists(output_file):
+        os.remove(output_file)
+    print('... Calling subprocess ')
+    video_extraction_process = subprocess.Popen([bash_cmd], stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+    output, error = video_extraction_process.communicate()
+    decoded_output = output.decode('utf-8')
+
+    # set up column names for pandas
+    col_names = []
+    for i in range(609):
+        col_i = 'SUPERB_{}'.format(i + 1)
+        col_names.append(col_i)
+
+    # get data from csv
+    temp_csv = pandas.read_csv(output_file, sep=' ', names=col_names, index_col=False)
+    expected_lines = len(temp_csv.index) 
+    # set up row names for pandas
+    row_names = {}
+    for i in range(expected_lines):
+        row_i = '{}_f{}'.format(input_file, i + 1)
+        row_names[i] = row_i
+    temp_csv.rename(index=row_names, inplace=True)
+
+    add = True
+    print('... Handling features')
+    features_dict = {}
+    for row_name in row_names.values():
+        features_dict[row_name] = {}
+        for col_name in col_names:
+            try:
+                features_dict[row_name][col_name] = temp_csv.loc[row_name, col_name]
+            except Exception as e:
+                print(e)
+                add = False
+                break
+
+
+    # remove temp-features.csv
+    if os.path.exists(output_file):
+        os.remove(output_file)
+
+    if add:
+        # add features to file object
+        file.features.update(features_dict)
+
+    return file
 
 
 # FUNCTION: PERFORM STEGANALYSIS
@@ -446,7 +500,7 @@ def perform_steganalysis(file_list, group_type):
     for file in file_list:
         print('[*] {} of {} files'.format(file_number, len(file_list)))
         if file.file_type == 'video':
-            file = get_npelo_features(file)
+            file = get_superb_features(file)
         file_number = file_number + 1
     # update user again
     print('=== Steganalysis complete! ===')
