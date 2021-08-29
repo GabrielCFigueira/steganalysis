@@ -1,7 +1,7 @@
 #!/bin/bash
 
 recorded_video_folder="/home/vagrant/Dropbox/Apps/Jitsi Meet/Recordings/"
-output_location="/home/vagrant/steganalyse/training-data/videos/"
+output_location="/home/vagrant/steganalysis/jitsi2/training-data/videos/"
 
 
 declare -i a=1

@@ -239,11 +239,12 @@ def create_xgb_classifier(file_type):
     print('[*] Reading {} ... '.format(csv_file))
     training_data = pandas.read_csv(csv_file)
    
-    training_data, columns = statistics(training_data)
+    columns = training_data.columns
+    #training_data, columns = statistics(training_data)
 
     training_data = training_data.sample(frac=1)
     print('[*] Getting x and y ... ')
-    x = training_data.drop(['class'], axis=1)
+    x = training_data.drop(['class', 'file_name'], axis=1)
     y = training_data['class']
 
     model = XGBClassifier()
@@ -452,12 +453,67 @@ def get_npelo_features(file):
 
     return file
 
-
-# FUNCTION: GET SUPERB FEATURES
-def get_superb_features(file):
+# FUNCTION: GET IDFB FEATURES
+def get_idfb_features(file, thread_id):
     # set up files for bash cmds
     input_file = file.file_name
-    output_file = 'temp-features.csv'
+    output_file = 'temp-features' + str(thread_id) + '.csv'
+    extractor = 'IDFB/extractor.exe'
+    bash_cmd = 'wine {} -s -t 1 -i {} -o {}'.format(extractor, input_file, output_file)
+
+    if os.path.exists(output_file):
+        os.remove(output_file)
+    print('... Calling subprocess ')
+    video_extraction_process = subprocess.Popen([bash_cmd], stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+    output, error = video_extraction_process.communicate()
+    decoded_output = output.decode('utf-8')
+
+    # set up column names for pandas
+    col_names = []
+    for i in range(768):
+        col_i = 'IDFB_{}'.format(i + 1)
+        col_names.append(col_i)
+
+    # get data from csv
+    temp_csv = pandas.read_csv(output_file, sep=' ', names=col_names, index_col=False)
+    expected_lines = 1 
+    # set up row names for pandas
+    row_names = {}
+    for i in range(expected_lines):
+        row_i = '{}_f{}'.format(input_file, i + 1)
+        row_names[i] = row_i
+    temp_csv.rename(index=row_names, inplace=True)
+
+    add = True
+    print('... Handling features')
+    features_dict = {}
+    for row_name in row_names.values():
+        features_dict[row_name] = {}
+        for col_name in col_names:
+            try:
+                features_dict[row_name][col_name] = temp_csv.loc[row_name, col_name]
+            except Exception as e:
+                print(e)
+                add = False
+                break
+
+
+    # remove temp-features.csv
+    if os.path.exists(output_file):
+        os.remove(output_file)
+
+    if add:
+        # add features to file object
+        file.features.update(features_dict)
+
+    return file
+
+
+# FUNCTION: GET SUPERB FEATURES
+def get_superb_features(file, thread_id):
+    # set up files for bash cmds
+    input_file = file.file_name
+    output_file = 'temp-features' + str(thread_id) + '.csv'
     extractor = 'SUPERB/extractor.exe'
     bash_cmd = 'wine {} -s -i {} -o {}'.format(extractor, input_file, output_file)
 
@@ -509,17 +565,28 @@ def get_superb_features(file):
     return file
 
 
+def thread_steganalysis(file_list, thread_id, total_threads):
+
+    for i in range(thread_id, len(file_list), total_threads):
+        print('[*] {} of {} files'.format(i, len(file_list)))
+        file = file_list[i]
+        if file.file_type == 'video':
+            file = get_idfb_features(file)
+
+
+
 # FUNCTION: PERFORM STEGANALYSIS
 def perform_steganalysis(file_list, group_type):
     # update user on progress
     print('\n=== Performing feature extraction on {} files (this will take a while) ... ==='.format(group_type))
     # get features for each file
-    file_number = 1
-    for file in file_list:
-        print('[*] {} of {} files'.format(file_number, len(file_list)))
-        if file.file_type == 'video':
-            file = get_superb_features(file)
-        file_number = file_number + 1
+    total_threads = multiprocessing.cpu_count()
+    threads = []
+    for i in range(total_threads):
+        threads += [threading.Thread(target=thread_steganalysis, args=(file_list, i, total_threads))]
+    for thread in threads:
+        thread.join()
+
     # update user again
     print('=== Steganalysis complete! ===')
     # return files
