@@ -3,29 +3,29 @@ import os
 import argparse
 import pathlib
 import glob
-import fleep
 import magic
 import subprocess
 import re
 import math
-import pandas
 import json
 import csv
-from sklearn.model_selection import train_test_split, StratifiedKFold
-from sklearn import svm, metrics, preprocessing, linear_model
 import joblib
 
+import fleep
+import pandas
 import numpy as np
 import random
 import warnings
 from xgboost import XGBClassifier
+from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score, roc_curve, auc
 from scipy import interp
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from scipy.stats import kurtosis, skew
-
+import multiprocessing
+import threading
 # --------------------------------------------
 
 # CLASSES
@@ -128,7 +128,7 @@ def aggregate(data):
 
     newData[video_id][n_columns * n_frames] = data['class'][len(data.index) - 1]
     newData = pandas.DataFrame(data=newData, columns=columns)
-    return newData
+    return newData, columns
 
 
 def computeNewFeatures(newData, video_id, features):
@@ -240,11 +240,11 @@ def create_xgb_classifier(file_type):
     training_data = pandas.read_csv(csv_file)
    
     columns = training_data.columns
-    #training_data, columns = statistics(training_data)
+    training_data, columns = statistics(training_data)
 
     training_data = training_data.sample(frac=1)
     print('[*] Getting x and y ... ')
-    x = training_data.drop(['class', 'file_name'], axis=1)
+    x = training_data.drop(['class'], axis=1)
     y = training_data['class']
 
     model = XGBClassifier()
@@ -291,9 +291,6 @@ def create_xgb_classifier(file_type):
         tpr.sort()
 
     print("[*] Model AUC: " + "{0:.3f}".format(mean_auc))
-
-    print('[*] Saving classifier as {} ... \n'.format(joblib_file))
-    joblib.dump(model, joblib_file)
 
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
@@ -476,7 +473,7 @@ def get_idfb_features(file, thread_id):
 
     # get data from csv
     temp_csv = pandas.read_csv(output_file, sep=' ', names=col_names, index_col=False)
-    expected_lines = 1 
+    expected_lines = len(temp_csv.index) 
     # set up row names for pandas
     row_names = {}
     for i in range(expected_lines):
@@ -571,7 +568,7 @@ def thread_steganalysis(file_list, thread_id, total_threads):
         print('[*] {} of {} files'.format(i, len(file_list)))
         file = file_list[i]
         if file.file_type == 'video':
-            file = get_idfb_features(file)
+            file = get_superb_features(file, thread_id)
 
 
 
@@ -583,7 +580,9 @@ def perform_steganalysis(file_list, group_type):
     total_threads = multiprocessing.cpu_count()
     threads = []
     for i in range(total_threads):
-        threads += [threading.Thread(target=thread_steganalysis, args=(file_list, i, total_threads))]
+        thread = threading.Thread(target=thread_steganalysis, args=(file_list, i, total_threads))
+        thread.start()
+        threads += [thread]
     for thread in threads:
         thread.join()
 
