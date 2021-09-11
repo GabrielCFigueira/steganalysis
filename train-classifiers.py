@@ -386,69 +386,6 @@ def write_vid_csv(stego_files_features, clean_files_features):
 # --------------------------------------------
 
 
-# FUNCTION: GET NPELO FEATURES
-def get_npelo_features(file):
-    # set up files for bash cmds
-    input_file = file.file_name
-    output_file = 'temp-features.csv'
-    extractor = 'NPELO_extractor/extractor.exe'
-    bash_cmd = 'wine {} -s -t 12 -i {} -o {}'.format(extractor, input_file, output_file)
-
-    if os.path.exists(output_file):
-        os.remove(output_file)
-    print('... Calling subprocess ')
-    video_extraction_process = subprocess.Popen([bash_cmd], stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
-    output, error = video_extraction_process.communicate()
-    decoded_output = output.decode('utf-8')
-
-    print('... Handling frames')
-    # get number of frames decoded & number of expected csv lines
-    frames = 0
-    for line in decoded_output.splitlines():
-        if 'frames are decoded' in line:
-            # print(line)
-            frames = int(re.search(r'\d+', line).group())
-    expected_lines = math.ceil(frames / 12)
-
-    # set up column names for pandas
-    col_names = []
-    for i in range(36):
-        col_i = 'NPELO_{}'.format(i + 1)
-        col_names.append(col_i)
-
-    # set up row names for pandas
-    row_names = {}
-    for i in range(expected_lines):
-        row_i = '{}_f{}'.format(input_file, i + 1)
-        row_names[i] = row_i
-
-    # get data from csv
-    temp_csv = pandas.read_csv(output_file, sep=' ', names=col_names, index_col=False)
-    temp_csv.rename(index=row_names, inplace=True)
-
-    add = True
-    print('... Handling features')
-    features_dict = {}
-    for row_name in row_names.values():
-        features_dict[row_name] = {}
-        for col_name in col_names:
-            try:
-                features_dict[row_name][col_name] = temp_csv.loc[row_name, col_name]
-            except Exception as e:
-                print(e)
-                add = False
-                break
-
-
-    # remove temp-features.csv
-    if os.path.exists(output_file):
-        os.remove(output_file)
-
-    if add:
-        # add features to file object
-        file.features.update(features_dict)
-
-    return file
 
 # FUNCTION: GET IDFB FEATURES
 def get_idfb_features(file, thread_id):
@@ -568,7 +505,7 @@ def thread_steganalysis(file_list, thread_id, total_threads):
         print('[*] {} of {} files'.format(i, len(file_list)))
         file = file_list[i]
         if file.file_type == 'video':
-            file = get_superb_features(file, thread_id)
+            file = get_idfb_features(file, thread_id)
 
 
 
