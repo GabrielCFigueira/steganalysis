@@ -49,7 +49,7 @@ class File:
         self.file_type = ''
         self.file_extension = ''
         self.file_size = ''
-        self.features = {}
+        self.features = None
         self.classification = {}
 
     def set_file_type(self, file_type):
@@ -224,14 +224,8 @@ def statistics(data):
 
 # --------------------------------------------
 
-#def clean_dataset(df):
-#        assert isinstance(df, pandas.DataFrame), "df needs to be a pd.DataFrame"
-#        df.dropna(inplace=True)
-#        indices_to_keep = ~df.isin([np.nan, np.inf, -np.inf]).any(1)
-#        return df[indices_to_keep]
-
 def create_xgb_classifier(file_type):
-    csv_file = './vid-features.csv'
+    csv_file = 'vid-features.csv'
     joblib_file = 'vid-xgb.joblib'
 
     print('=== Handling SVM for {} files ... ==='.format(file_type))
@@ -341,50 +335,23 @@ def create_xgb_classifier(file_type):
 def write_vid_csv(stego_files_features, clean_files_features):
     # set file name
     output_file = 'vid-features.csv'
-    # set up lists for csv
-    list_of_dicts = []
-    feature_types = []
-    # update class of stego files
+    
+    resultingDF = pandas.DataFrame()
     for file in stego_files_features:
-        for extracted_frame in file.features:
-            temp_dict = {}
-            temp_dict['file_name'] = extracted_frame
-            for feature_type, feature_list in file.features[extracted_frame].items():
-                temp_dict[feature_type] = feature_list
-                if feature_type not in feature_types:
-                    feature_types.append(feature_type)
-            temp_dict['class'] = 1
-            list_of_dicts.append(temp_dict)
+        file.features['class'] = [1] * len(file.features.index)
+        resultingDF = resultingDF.append([file.features])
     # update class of clean files
     for file in clean_files_features:
-        for extracted_frame in file.features:
-            temp_dict = {}
-            temp_dict['file_name'] = extracted_frame
-            for feature_type, feature_list in file.features[extracted_frame].items():
-                temp_dict[feature_type] = feature_list
-                if feature_type not in feature_types:
-                    feature_types.append(feature_type)
-            temp_dict['class'] = 0
-            list_of_dicts.append(temp_dict)
-    # add features to csv for processing
-    with open(output_file, 'w', newline='') as csv_file:
-        # set fieldnames
-        fieldnames = ['file_name']
-        for feature_type in feature_types:
-            fieldnames.append(feature_type)
-        fieldnames.append('class')
-        # set up writer
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-        # begin writing
-        writer.writeheader()
-        for dict_item in list_of_dicts:
-            writer.writerow(dict_item)
+        file.features['class'] = [0] * len(file.features.index)
+        resultingDF = resultingDF.append([file.features])
+        
+    resultingDF.to_csv(output_file)
+        
     # update user again
     print('[*] Extracted video features can be found in {}.'.format(output_file))
 
 
 # --------------------------------------------
-
 
 
 # FUNCTION: GET IDFB FEATURES
@@ -410,35 +377,20 @@ def get_idfb_features(file, thread_id):
 
     # get data from csv
     temp_csv = pandas.read_csv(output_file, sep=' ', names=col_names, index_col=False)
-    expected_lines = len(temp_csv.index) 
+    expected_lines = len(temp_csv.index)
     # set up row names for pandas
-    row_names = {}
+    row_names = []
     for i in range(expected_lines):
         row_i = '{}_f{}'.format(input_file, i + 1)
-        row_names[i] = row_i
-    temp_csv.rename(index=row_names, inplace=True)
+        row_names += [row_i]
 
-    add = True
-    print('... Handling features')
-    features_dict = {}
-    for row_name in row_names.values():
-        features_dict[row_name] = {}
-        for col_name in col_names:
-            try:
-                features_dict[row_name][col_name] = temp_csv.loc[row_name, col_name]
-            except Exception as e:
-                print(e)
-                add = False
-                break
-
+    temp_csv['file_name'] = row_names
 
     # remove temp-features.csv
     if os.path.exists(output_file):
         os.remove(output_file)
 
-    if add:
-        # add features to file object
-        file.features.update(features_dict)
+    file.features = temp_csv
 
     return file
 
@@ -466,35 +418,20 @@ def get_superb_features(file, thread_id):
 
     # get data from csv
     temp_csv = pandas.read_csv(output_file, sep=' ', names=col_names, index_col=False)
-    expected_lines = len(temp_csv.index) 
+    expected_lines = len(temp_csv.index)
     # set up row names for pandas
-    row_names = {}
+    row_names = []
     for i in range(expected_lines):
         row_i = '{}_f{}'.format(input_file, i + 1)
-        row_names[i] = row_i
-    temp_csv.rename(index=row_names, inplace=True)
+        row_names += [row_i]
 
-    add = True
-    print('... Handling features')
-    features_dict = {}
-    for row_name in row_names.values():
-        features_dict[row_name] = {}
-        for col_name in col_names:
-            try:
-                features_dict[row_name][col_name] = temp_csv.loc[row_name, col_name]
-            except Exception as e:
-                print(e)
-                add = False
-                break
-
+    temp_csv['file_name'] = row_names
 
     # remove temp-features.csv
     if os.path.exists(output_file):
         os.remove(output_file)
 
-    if add:
-        # add features to file object
-        file.features.update(features_dict)
+    file.features = temp_csv
 
     return file
 
@@ -506,7 +443,6 @@ def thread_steganalysis(file_list, thread_id, total_threads):
         file = file_list[i]
         if file.file_type == 'video':
             file = get_idfb_features(file, thread_id)
-
 
 
 # FUNCTION: PERFORM STEGANALYSIS
