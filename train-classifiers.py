@@ -298,16 +298,19 @@ def create_xgb_classifier(file_type):
     tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
     plt.fill_between(mean_fpr, tprs_lower, tprs_upper, color='grey', alpha=.3, label=r'$\pm$ ROC Std. Dev.')
 
-    ax1.plot([0, 1], [0, 1], 'k--', lw=2, color='orange', label='Random Guess')
-    ax1.grid(color='black', linestyle='dotted')
+    ax1.plot([0, 1], [0, 1], 'k--', lw=2, color='0.0', label='Random Guess')
+    ax1.grid(color='black', linestyle='dotted', lw=0.2)
 
     plt.title('Receiver Operating Characteristic (ROC)')
-    plt.xlabel('False Positive Rate', fontsize='x-large')
-    plt.ylabel('True Positive Rate', fontsize='x-large')
-    plt.legend(loc='lower right', fontsize='large')
+    plt.xlabel('False Positive Rate', fontsize=26)
+    plt.ylabel('True Positive Rate', fontsize=24)
+    plt.legend(loc='lower right', frameon=False, handlelength=1.0, fontsize=14)
 
-    plt.setp(ax1.get_xticklabels(), fontsize=14)
-    plt.setp(ax1.get_yticklabels(), fontsize=14)
+    plt.setp(ax1.get_xticklabels(), fontsize=20)
+    plt.setp(ax1.get_yticklabels(), fontsize=20)
+
+    ax1.set(xlim=(0, 1), ylim=(0.0, 1))
+    plt.tight_layout()
     
     fig.savefig('Steganalysis.pdf')
     plt.close(fig)
