@@ -299,9 +299,11 @@ def create_xgb_classifier(file_type):
     plt.fill_between(mean_fpr, tprs_lower, tprs_upper, color='grey', alpha=.3, label=r'$\pm$ ROC Std. Dev.')
 
     ax1.plot([0, 1], [0, 1], 'k--', lw=2, color='0.0', label='Random Guess')
-    ax1.grid(color='black', linestyle='dotted', lw=0.2)
+    ax1.yaxis.grid(color='black', linestyle='dotted', lw=0.2)
 
-    plt.title('Receiver Operating Characteristic (ROC)')
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['top'].set_visible(False)
+
     plt.xlabel('False Positive Rate', fontsize=26)
     plt.ylabel('True Positive Rate', fontsize=24)
     plt.legend(loc='lower right', frameon=False, handlelength=1.0, fontsize=14)
