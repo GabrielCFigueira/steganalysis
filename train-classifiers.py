@@ -290,6 +290,9 @@ def create_xgb_classifier(file_type):
     ax1 = fig.add_subplot(111)
 
     std_auc = np.std(aucs)
+    
+    np.save("ROC_10CV_XGBoost_Sensitivity", np.array(mean_tpr))
+    np.save("ROC_10CV_XGBoost_Specificity", np.array(mean_fpr))
 
     plt.plot(mean_fpr, mean_tpr, color='b', label=r'Mean ROC (AUC = %0.2f $\pm$ %0.3f)' % (mean_auc, std_auc), lw=2, alpha=.8)
 
