@@ -504,7 +504,7 @@ if __name__ == '__main__':
 
     # argument parsing
     parser = argparse.ArgumentParser(description='A script to extract video features, '
-                                                 '& train a machine learning classifier. ')
+                                                 '& train a machine learning classifier.')
     parser.add_argument('dir_location', action="store", help='Directory location of training data in quotation marks')
     args = parser.parse_args()
     # handle arguments
