@@ -76,60 +76,6 @@ def fileName(string):
     split = string.split("_")
     return split[0], int(split[1][1:])
 
-def aggregate(data):
-
-    file_name, _ = fileName(data['file_name'][0])
-    current_file_name = file_name
-
-    n_videos = 1
-    n_frames = 300 #TODO improve this
-    oldI = 300
-    for idx in range(len(data.index)):
-        current_file_name, i = fileName(data['file_name'][idx])
-    
-        if current_file_name != file_name:
-            n_videos += 1
-            file_name = current_file_name
-            if oldI < n_frames:
-                n_frames = oldI
-
-        oldI = i
-    
-    print("n_videos: " + str(n_videos))
-    print("n_frames: " + str(n_frames))
-
-    n_columns = len(data.iloc[0]) - 2
-    columns = []
-    for i in range(n_frames):
-        for j in range(n_columns):
-            columns += [str(i * n_frames + j)]
-    
-    columns += ['class']
-
-    file_name, _ = fileName(data['file_name'][0])
-    current_file_name = file_name
-
-    newData = np.ndarray(shape=(n_videos,n_columns * n_frames + 1), dtype=float)
-
-    video_id = 0
-    for idx in range(len(data.index)):
-        current_file_name, i = fileName(data['file_name'][idx])
-
-        if current_file_name != file_name:
-            file_name = current_file_name
-            newData[video_id][n_columns * n_frames] = data['class'][idx - 1]
-            video_id += 1
-        elif i > n_frames:
-            continue
-
-        row = data.iloc[idx].drop(['class', 'file_name'])
-        for d in range(len(row)):
-            newData[video_id][(i - 1) * n_columns + d] = row[d]
-
-    newData[video_id][n_columns * n_frames] = data['class'][len(data.index) - 1]
-    newData = pandas.DataFrame(data=newData, columns=columns)
-    return newData, columns
-
 
 def computeNewFeatures(newData, video_id, features):
     n_features = 17 # number of statistical features
@@ -547,12 +493,7 @@ def run(dir_location):
         # write to csvs
         print('\n===== WRITING FEATURES TO DISK =====\n')
         write_vid_csv(vid_stego_features, vid_clean_features)
-    # create & train svm
-    #print('\n===== CREATING & TRAINING SVMs =====\n')
-    #create_svm_classifier('video')
-    #print('\n===== CREATING & TRAINING LOGISTIC REGRESSION CLASSIFIERS =====\n')
-    #create_lr_classifier('video')
-    print('\n===== CREATING & TRAINING XGBOOST CLASSIFIERS =====\n')
+    print('\n===== CREATING & TRAINING XGBOOST CLASSIFIER =====\n')
     create_xgb_classifier('video')
 
 
@@ -562,8 +503,8 @@ if __name__ == '__main__':
     warnings.filterwarnings(action='ignore')
 
     # argument parsing
-    parser = argparse.ArgumentParser(description='A script to extract image & video features, '
-                                                 '& train machine learning classifiers [SVM & Logistic Regression]. ')
+    parser = argparse.ArgumentParser(description='A script to extract video features, '
+                                                 '& train a machine learning classifier. ')
     parser.add_argument('dir_location', action="store", help='Directory location of training data in quotation marks')
     args = parser.parse_args()
     # handle arguments
